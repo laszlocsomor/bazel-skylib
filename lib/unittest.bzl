@@ -69,7 +69,6 @@ def _make(impl, attrs = None):
 
     attrs = dict(attrs) if attrs else {}
     attrs["_impl_name"] = attr.string(default = impl_name)
-    attrs["is_host_windows"] = attr.bool()
 
     return rule(
         impl,
@@ -82,6 +81,7 @@ def _make(impl, attrs = None):
         # On Windows this allows the output file to be executable. On all other platforms the file's
         # extension is irrelevant because it's shebang line defines the interpreter.
         outputs = {"testbin": "%{name}.bat"},
+        toolchains = ["//toolchains:toolchain_type"],
     )
 
 def _suite(name, *test_rules):
@@ -131,13 +131,7 @@ def _suite(name, *test_rules):
     test_names = []
     for index, test_rule in enumerate(test_rules):
         test_name = "%s_test_%d" % (name, index)
-        test_rule(
-            name = test_name,
-            is_host_windows = select({
-                "@bazel_tools//src/conditions:host_windows": True,
-                "//conditions:default": False,
-            }),
-        )
+        test_rule(name = test_name)
         test_names.append(test_name)
 
     native.test_suite(
@@ -174,7 +168,7 @@ def _end(env):
       env: The test environment returned by `unittest.begin`.
     """
 
-    if env.ctx.attr.is_host_windows:
+    if env.ctx.toolchains["//toolchains:toolchain_type"].bazel_skylib_toolchain_info.is_exec_windows:
         if env.failures:
             cmd = "\n".join([
                 "@echo off",
