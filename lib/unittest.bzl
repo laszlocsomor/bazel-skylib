@@ -41,7 +41,7 @@ def _make(impl, attrs = None):
 
       # Assert statements go here
 
-      unittest.end(env)
+      return unittest.end(env)
 
     your_test = unittest.make(_your_test)
     ```
@@ -69,12 +69,19 @@ def _make(impl, attrs = None):
 
     attrs = dict(attrs) if attrs else {}
     attrs["_impl_name"] = attr.string(default = impl_name)
+    attrs["is_host_windows"] = attr.bool()
 
     return rule(
         impl,
         attrs = attrs,
         _skylark_testable = True,
         test = True,
+        # is_host_windows uses a select(), therefore we cannot pass an output function that would
+        # compute the output file's name based on this attribute (to return "%{name}.bat" or
+        # "%{name}), so we use "%{name}.bat" on all platforms.
+        # On Windows this allows the output file to be executable. On all other platforms the file's
+        # extension is irrelevant because it's shebang line defines the interpreter.
+        outputs = {"testbin": "%{name}.bat"},
     )
 
 def _suite(name, *test_rules):
@@ -124,7 +131,13 @@ def _suite(name, *test_rules):
     test_names = []
     for index, test_rule in enumerate(test_rules):
         test_name = "%s_test_%d" % (name, index)
-        test_rule(name = test_name)
+        test_rule(
+            name = test_name,
+            is_host_windows = select({
+                "@bazel_tools//src/conditions:host_windows": True,
+                "//conditions:default": False,
+            }),
+        )
         test_names.append(test_name)
 
     native.test_suite(
@@ -160,17 +173,36 @@ def _end(env):
     Args:
       env: The test environment returned by `unittest.begin`.
     """
-    cmd = "\n".join([
-        "cat << EOF",
-        "\n".join(env.failures),
-        "EOF",
-        "exit %d" % len(env.failures),
-    ])
+
+    if env.ctx.attr.is_host_windows:
+        if env.failures:
+            cmd = "\n".join([
+                "@echo off",
+                "echo " + "\necho ".join(env.failures),
+                "exit /b 1",
+            ])
+        else:
+            cmd = "@exit /b 0"
+    elif env.failures:
+        cmd = "\n".join([
+            "#!/bin/sh",
+            "cat << EOF",
+            "\n".join(env.failures),
+            "EOF",
+            "exit 1",
+        ])
+    else:
+        cmd = "\n".join([
+            "#!/bin/sh",
+            "exit 0",
+        ])
+
     env.ctx.actions.write(
-        output = env.ctx.outputs.executable,
+        output = env.ctx.outputs.testbin,
         content = cmd,
         is_executable = True,
     )
+    return [DefaultInfo(executable = env.ctx.outputs.testbin)]
 
 def _fail(env, msg):
     """Unconditionally causes the current test to fail.
