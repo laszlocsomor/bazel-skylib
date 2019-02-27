@@ -391,16 +391,7 @@ def _create_outputs(ctx, ctx_label_name, ctx_attr_outs_templates, strategy, fore
         return outs_dicts, all_output_files, src_placeholders_dicts, None
 
 def _resolve_locations(ctx, strategy, ctx_attr_add_env, ctx_attr_tools):
-    # ctx.resolve_command returns a Bash command. All we need though is the inputs and runfiles
-    # manifests (we expand $(location) references with ctx.expand_location below), so ignore the
-    # tuple's middle element (the resolved command).
-    inputs_from_tools, _, manifests_from_tools = ctx.resolve_command(
-        # Pretend that the additional envvars are forming a command, so resolve_command will resolve
-        # $(location) references in them (which we ignore here) and add their inputs and manifests
-        # to the results (which we really care about).
-        command = " ".join(ctx_attr_add_env.values()),
-        tools = ctx_attr_tools,
-    )
+    inputs_from_tools, manifests_from_tools = ctx.resolve_tools(tools = ctx_attr_tools)
 
     errors = []
     location_expressions = []
@@ -449,7 +440,7 @@ def _resolve_locations(ctx, strategy, ctx_attr_add_env, ctx_attr_tools):
     else:
         return inputs_from_tools, manifests_from_tools, resolved_add_env, None
 
-def _custom_envmap(ctx, strategy, src_placeholders, outs_dict, add_env):
+def _custom_envmap(ctx, strategy, src_placeholders, outs_dict, resolved_add_env):
     return dicts.add(
         {
             "MAPRULE_" + k.upper(): strategy.as_path(v)
@@ -460,8 +451,8 @@ def _custom_envmap(ctx, strategy, src_placeholders, outs_dict, add_env):
             for k, v in outs_dict.items()
         },
         {
-            "MAPRULE_" + k.upper(): strategy.as_path(ctx.expand_location(v)).format(**src_placeholders)
-            for k, v in add_env.items()
+            "MAPRULE_" + k.upper(): v
+            for k, v in resolved_add_env.items()
         },
     )
 
