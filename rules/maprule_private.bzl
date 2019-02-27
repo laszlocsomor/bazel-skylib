@@ -390,9 +390,7 @@ def _create_outputs(ctx, ctx_label_name, ctx_attr_outs_templates, strategy, fore
     else:
         return outs_dicts, all_output_files, src_placeholders_dicts, None
 
-def _resolve_locations(ctx, strategy, ctx_attr_add_env, ctx_attr_tools):
-    inputs_from_tools, manifests_from_tools = ctx.resolve_tools(tools = ctx_attr_tools)
-
+def _resolve_locations(ctx, strategy, ctx_attr_add_env):
     errors = []
     location_expressions = []
     parts = {}
@@ -410,7 +408,7 @@ def _resolve_locations(ctx, strategy, ctx_attr_add_env, ctx_attr_tools):
             location_expressions.append("")
 
     if errors:
-        return None, None, None, errors
+        return None, errors
 
     resolved_add_env = {}
     if was_anything_to_resolve:
@@ -436,9 +434,9 @@ def _resolve_locations(ctx, strategy, ctx_attr_add_env, ctx_attr_tools):
         resolved_add_env = ctx_attr_add_env
 
     if errors:
-        return None, None, None, errors
+        return None, errors
     else:
-        return inputs_from_tools, manifests_from_tools, resolved_add_env, None
+        return resolved_add_env, None
 
 def _custom_envmap(ctx, strategy, src_placeholders, outs_dict, resolved_add_env):
     return dicts.add(
@@ -493,11 +491,11 @@ def _maprule_main(ctx, strategy):
     )
 
     # Resolve $(location) references in "cmd" and in "add_env".
-    inputs_from_tools, manifests_from_tools, add_env, errors = _resolve_locations(
+    inputs_from_tools, manifests_from_tools = ctx.resolve_tools(tools = ctx.attr.tools)
+    add_env, errors = _resolve_locations(
         ctx,
         strategy,
         ctx.attr.add_env,
-        ctx.attr.tools,
     )
     _fail_if_errors(errors)
 
