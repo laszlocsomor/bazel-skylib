@@ -112,12 +112,12 @@ def _validate_attributes_test(ctx):
     env = unittest.begin(ctx)
     _assert_no_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "bar"}, {"BAR": "value1"}),
+        maprule_testing.validate_attributes({"MR_FOO": "bar"}, {"MR_BAR": "value1"}),
         "assertion #1",
     )
     _assert_no_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "bar"}, {}),
+        maprule_testing.validate_attributes({"MR_FOO": "bar"}, {}),
         "assertion #2",
     )
 
@@ -142,74 +142,89 @@ def _validate_attributes_test(ctx):
     _assert_error(
         env,
         maprule_testing.validate_attributes({"SRC": "bar"}, {}),
+        "name should start with \"MR_\"",
+        "assertion #5.1",
+    )
+    _assert_error(
+        env,
+        maprule_testing.validate_attributes({"MR_": "bar"}, {}),
+        "name should be more than just \"MR_\"",
+        "assertion #5.2",
+    )
+    _assert_error(
+        env,
+        maprule_testing.validate_attributes({"MR_SRC": "bar"}, {}),
         "conflicting with the environment variable of the source file",
         "assertion #6",
     )
 
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"FOO": ""}, {}),
+        maprule_testing.validate_attributes({"MR_FOO": ""}, {}),
         "output path should not be empty",
         "assertion #7",
     )
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "/usr/bin"}, {}),
+        maprule_testing.validate_attributes({"MR_FOO": "/usr/bin"}, {}),
         "output path should be relative",
         "assertion #8",
     )
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "c:/usr/bin"}, {}),
+        maprule_testing.validate_attributes({"MR_FOO": "c:/usr/bin"}, {}),
         "output path should be relative",
         "assertion #9",
     )
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "../foo"}, {}),
+        maprule_testing.validate_attributes({"MR_FOO": "../foo"}, {}),
         "output path should not contain uplevel references",
         "assertion #10",
     )
     _assert_no_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "./foo"}, {}),
+        maprule_testing.validate_attributes({"MR_FOO": "./foo"}, {}),
         "assertion #11",
     )
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"BAR": "foo", "FOO": "foo"}, {}),
-        "output path is already used for \"BAR\"",
+        maprule_testing.validate_attributes({"MR_BAR": "foo", "MR_FOO": "foo"}, {}),
+        "output path is already used for \"MR_BAR\"",
         "assertion #12",
     )
 
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "bar"}, {"": "baz"}),
+        maprule_testing.validate_attributes({"MR_FOO": "bar"}, {"": "baz"}),
         "name should not be empty",
         "assertion #13",
     )
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "bar"}, {"Bar": "baz"}),
+        maprule_testing.validate_attributes({"MR_FOO": "bar"}, {"Bar": "baz"}),
         "name should be all upper-case",
         "assertion #14",
     )
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "bar"}, {"FOO": "baz"}),
-        "conflicting with the environment variable of the \"FOO\" output file",
+        maprule_testing.validate_attributes({"MR_FOO": "bar"}, {"MR_FOO": "baz"}),
+        "conflicting with the environment variable of the \"MR_FOO\" output file",
         "assertion #15",
     )
 
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "bar"}, {"BAR": "$(location x) $(location y)"}),
+        maprule_testing.validate_attributes(
+            {"MR_FOO": "bar"},
+            {"MR_BAR": "$(location x) $(location y)"},
+        ),
         "use only one $(location)",
         "assertion #16",
     )
     _assert_error(
         env,
-        maprule_testing.validate_attributes({"FOO": "bar"}, {"BAR": "a $(location b"}),
+        maprule_testing.validate_attributes({"MR_FOO": "bar"}, {"MR_BAR": "a $(location b"}),
         "missing closing parenthesis",
         "assertion #17",
     )
@@ -280,28 +295,28 @@ def _custom_envmap_test(ctx):
             strategy,
             src_placeholders = {"src_ph1": "Src/Ph1-value", "src_ph2": "Src/Ph2-value"},
             outs_dict = {
-                "out1": _mock_file(ctx, language + "/Foo/Out1"),
-                "out2": _mock_file(ctx, language + "/Foo/Out2"),
+                "MR_OUT1": _mock_file(ctx, language + "/Foo/Out1"),
+                "MR_OUT2": _mock_file(ctx, language + "/Foo/Out2"),
             },
-            resolved_add_env = {"ENV1": "Env1"},
+            resolved_add_env = {"MR_ENV1": "Env1"},
         )
         _assert_dict_keys(
             env,
-            ["MAPRULE_SRC_PH1", "MAPRULE_SRC_PH2", "MAPRULE_OUT1", "MAPRULE_OUT2", "MAPRULE_ENV1"],
+            ["MR_SRC_PH1", "MR_SRC_PH2", "MR_OUT1", "MR_OUT2", "MR_ENV1"],
             actual[language],
             msg = "assertion #1 (language: %s)" % language,
         )
-        actual[language]["MAPRULE_OUT1"] = _lstrip_until(actual[language]["MAPRULE_OUT1"], "Foo")
-        actual[language]["MAPRULE_OUT2"] = _lstrip_until(actual[language]["MAPRULE_OUT2"], "Foo")
+        actual[language]["MR_OUT1"] = _lstrip_until(actual[language]["MR_OUT1"], "Foo")
+        actual[language]["MR_OUT2"] = _lstrip_until(actual[language]["MR_OUT2"], "Foo")
 
     asserts.equals(
         env,
         {
-            "MAPRULE_ENV1": "Env1",
-            "MAPRULE_OUT1": "Foo\\Out1",
-            "MAPRULE_OUT2": "Foo\\Out2",
-            "MAPRULE_SRC_PH1": "Src\\Ph1-value",
-            "MAPRULE_SRC_PH2": "Src\\Ph2-value",
+            "MR_ENV1": "Env1",
+            "MR_OUT1": "Foo\\Out1",
+            "MR_OUT2": "Foo\\Out2",
+            "MR_SRC_PH1": "Src\\Ph1-value",
+            "MR_SRC_PH2": "Src\\Ph2-value",
         },
         actual["cmd"],
         msg = "assertion #2",
@@ -310,11 +325,11 @@ def _custom_envmap_test(ctx):
     asserts.equals(
         env,
         {
-            "MAPRULE_ENV1": "Env1",
-            "MAPRULE_OUT1": "Foo/Out1",
-            "MAPRULE_OUT2": "Foo/Out2",
-            "MAPRULE_SRC_PH1": "Src/Ph1-value",
-            "MAPRULE_SRC_PH2": "Src/Ph2-value",
+            "MR_ENV1": "Env1",
+            "MR_OUT1": "Foo/Out1",
+            "MR_OUT2": "Foo/Out2",
+            "MR_SRC_PH1": "Src/Ph1-value",
+            "MR_SRC_PH2": "Src/Ph2-value",
         },
         actual["bash"],
         msg = "assertion #3",
@@ -342,8 +357,8 @@ def _create_outputs_test(ctx):
                 ctx,
                 "my_maprule",
                 {
-                    "OUT1": "{src}.out1",
-                    "OUT2": "{src_dir}/out2/{src_name_noext}.out2",
+                    "MR_OUT1": "{src}.out1",
+                    "MR_OUT2": "{src_dir}/out2/{src_name_noext}.out2",
                 },
                 strategy,
                 foreach_srcs,
@@ -364,7 +379,7 @@ def _create_outputs_test(ctx):
         for src in foreach_srcs:
             _assert_dict_keys(
                 env,
-                ["OUT1", "OUT2"],
+                ["MR_OUT1", "MR_OUT2"],
                 outs_dicts[src],
                 "assertion #3 (language: %s, src: %s)" % (language, src),
             )
@@ -372,39 +387,39 @@ def _create_outputs_test(ctx):
         _assert_ends_with(
             env,
             "my_maprule_out/tests/%s/foo/src1.txt.out1" % language,
-            outs_dicts[src1]["OUT1"].path,
+            outs_dicts[src1]["MR_OUT1"].path,
             "assertion #4 (language: %s)" % language,
         )
         _assert_ends_with(
             env,
             "my_maprule_out/tests/%s/foo/out2/src1.out2" % language,
-            outs_dicts[src1]["OUT2"].path,
+            outs_dicts[src1]["MR_OUT2"].path,
             "assertion #5 (language: %s)" % language,
         )
 
         _assert_ends_with(
             env,
             "my_maprule_out/tests/%s/foo/src2.pb.h.out1" % language,
-            outs_dicts[src2]["OUT1"].path,
+            outs_dicts[src2]["MR_OUT1"].path,
             "assertion #6 (language: %s)" % language,
         )
         _assert_ends_with(
             env,
             "my_maprule_out/tests/%s/foo/out2/src2.pb.out2" % language,
-            outs_dicts[src2]["OUT2"].path,
+            outs_dicts[src2]["MR_OUT2"].path,
             "assertion #7 (language: %s)" % language,
         )
 
         _assert_ends_with(
             env,
             "my_maprule_out/tests/%s/bar/src1.txt.out1" % language,
-            outs_dicts[src3]["OUT1"].path,
+            outs_dicts[src3]["MR_OUT1"].path,
             "assertion #8 (language: %s)" % language,
         )
         _assert_ends_with(
             env,
             "my_maprule_out/tests/%s/bar/out2/src1.out2" % language,
-            outs_dicts[src3]["OUT2"].path,
+            outs_dicts[src3]["MR_OUT2"].path,
             "assertion #9 (language: %s)" % language,
         )
 
@@ -447,9 +462,9 @@ def _conflicting_outputs_test(ctx):
                 ctx,
                 "my_maprule",
                 {
-                    "OUT1": "out1",  # 3 conflicts
-                    "OUT2": "{src_dir}/out2",  # 2 conflicts
-                    "OUT3": "out3/{src_name}",  # 2 conflicts
+                    "MR_OUT1": "out1",  # 3 conflicts
+                    "MR_OUT2": "{src_dir}/out2",  # 2 conflicts
+                    "MR_OUT3": "out3/{src_name}",  # 2 conflicts
                 },
                 strategy,
                 foreach_srcs,
@@ -462,21 +477,21 @@ def _conflicting_outputs_test(ctx):
         _assert_error_fragments(
             env,
             errors,
-            ["out1", language + "/foo/src1.txt", "OUT1", language + "/foo/src2.pb.h", "OUT1"],
+            ["out1", language + "/foo/src1.txt", "MR_OUT1", language + "/foo/src2.pb.h", "MR_OUT1"],
             msg = "assertion #1 (language: %s)" % language,
         )
 
         _assert_error_fragments(
             env,
             errors,
-            ["out2", language + "/foo/src1.txt", "OUT2", language + "/foo/src2.pb.h", "OUT2"],
+            ["out2", language + "/foo/src1.txt", "MR_OUT2", language + "/foo/src2.pb.h", "MR_OUT2"],
             msg = "assertion #2 (language: %s)" % language,
         )
 
         _assert_error_fragments(
             env,
             errors,
-            ["out3/src1.txt", language + "/foo/src1.txt", "OUT3", language + "/bar/src1.txt", "OUT3"],
+            ["out3/src1.txt", language + "/foo/src1.txt", "MR_OUT3", language + "/bar/src1.txt", "MR_OUT3"],
             msg = "assertion #5 (language: %s)" % language,
         )
 

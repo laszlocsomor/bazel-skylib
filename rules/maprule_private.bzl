@@ -70,8 +70,8 @@ _cmd_maprule_example = """
 
         # Note: this command should live in a script file, we only inline it in the `cmd` attribute
         # for the sake of demonstration. See Tips and Tricks section.
-        cmd = "%MAPRULE_ASSET_TAGGER% --input=%MAPRULE_SRC% --output=%MAPRULE_TAGS% & " +
-              'IF /I "%ERRORLEVEL%" EQU "0" ( %MAPRULE_MD5SUM% %MAPRULE_SRC% &gt; %MAPRULE_DIGEST% )',
+        cmd = "%MR_ASSET_TAGGER% --input=%MR_SRC% --output=%MR_TAGS% & " +
+              'IF /I "%ERRORLEVEL%" EQU "0" ( %MR_MD5SUM% %MR_SRC% &gt; %MR_DIGEST% )',
     )
 """
 
@@ -103,8 +103,8 @@ _bash_maprule_example = """
 
         # Note: this command should live in a script file, we only inline it in the `cmd` attribute
         # for the sake of demonstration. See Tips and Tricks section.
-        cmd = '"$MAPRULE_ASSET_TAGGER" --input="$MAPRULE_SRC" --output="$MAPRULE_TAGS" && ' +
-              '"$MAPRULE_MD5SUM" "$MAPRULE_SRC" &gt; "$MAPRULE_DIGEST"',
+        cmd = '"$MR_ASSET_TAGGER" --input="$MR_SRC" --output="$MR_TAGS" && ' +
+              '"$MR_MD5SUM" "$MR_SRC" &gt; "$MR_DIGEST"',
     )
 """
 
@@ -156,8 +156,7 @@ It's a lot easier and maintainable to create a script file such as "foo.sh" in `
 1. move the commands to a script file
 2. add the script file to the `tools` attribute
 3. add an entry to the `add_env` attribute, e.g. "`TOOL:&nbsp;"$(location :tool.sh)"`"
-4. replace the `cmd` with just "$MAPRULE_FOO" (in `bash_maprule`) or "%MAPRULE_FOO%" (in
-   `cmd_maprule`).
+4. replace the `cmd` with just "$MR_FOO" (in `bash_maprule`) or "%MR_FOO%" (in `cmd_maprule`).
 
 Doing this also avoids hitting command line length limits.
 
@@ -175,7 +174,7 @@ Example:
             "STATS_TOOL": "$(location :weather-stats-computer)",
             "TEMPERATURES": "$(location //data:temperatures.txt)",
         }},
-        cmd = "%MAPRULE_COMMAND%",
+        cmd = "%MR_COMMAND%",
     )
 
 ### Use the `add_env` attribute to pass tool locations to the command.
@@ -196,7 +195,7 @@ Example:
             "STATS_TOOL": "$(location :weather-stats-computer)",
             "TEMPERATURES": "$(location //data:temperatures.txt)",
         }},
-        cmd = "%MAPRULE_STATS_TOOL% --src=%MAPRULE_SRC% --data=%MAPRULE_TEMPERATURES% > %MAPRULE_STATS_OUT%",
+        cmd = "%MR_STATS_TOOL% --src=%MR_SRC% --data=%MR_TEMPERATURES% > %MR_STATS_OUT%",
     )
 
     cc_binary(
@@ -209,17 +208,17 @@ Example:
 *(The Environment Variables section is the same for `cmd_maprule` and `bash_maprule`.)*
 
 The rule defines several environment variables available to the command may reference. All of these
-envvars names start with "MAPRULE_". You can add your own envvars with the `add_env` attribute.
+envvars names start with "MR_". You can add your own envvars with the `add_env` attribute.
 
-The command can use some envvars, all named "MAPRULE_*&lt;something&gt;*".
+The command can use some envvars, all named "MR_*&lt;something&gt;*".
 
 The complete list of environment variables is:
 
--   "MAPRULE_SRC": the path of the current file from `foreach_srcs`
--   "MAPRULE_SRCS": the space-separated paths of all files in the `srcs` attribute
--   "MAPRULE_*&lt;OUT&gt;*": for each key name *&lt;OUT&gt;* in the `outs_templates` attribute, this
+-   "MR_SRC": the path of the current file from `foreach_srcs`
+-   "MR_SRCS": the space-separated paths of all files in the `srcs` attribute
+-   "MR_*&lt;OUT&gt;*": for each key name *&lt;OUT&gt;* in the `outs_templates` attribute, this
     is the path of the respective output file for the current source
--   "MAPRULE_*&lt;ENV&gt;*": for each key name *&lt;ENV&gt;* in the `add_env` attribute
+-   "MR_*&lt;ENV&gt;*": for each key name *&lt;ENV&gt;* in the `add_env` attribute
 
 ## FAQ
 
@@ -241,7 +240,7 @@ potential issues with paths containing spaces. Instead, maprule exports environm
 the input and outputs of the action, and allows the user to define extra envvars. These extra
 envvars do support "$(location)" expressions, so you can pass paths of labels in `srcs` and `tools`.
 
-### Why are all envvars exported with the "MAPRULE_" prefix?
+### Why are all envvars exported with the "MR_" prefix?
 
 To avoid conflicts with other envvars, whose names could also be attractive outs_templates names.
 
@@ -250,11 +249,6 @@ To avoid conflicts with other envvars, whose names could also be attractive outs
 Because they are exported as all-uppercase envvars, so requiring that they be declared as uppercase
 gives a visual cue of that. It also avoids clashes resulting from mixed lower-upper-case names like
 "foo" and "Foo".
-
-### Why don't `outs_templates` and `add_env` keys have to start with "MAPRULE_" even though they are exported as such?
-
-For convenience. It seems to bring no benefit to have the user always type "MAPRULE_" in front of
-the name when the rule itself could as well add it.
 
 ### Why are all outputs relative to "*&lt;maprule_pkg&gt;*/*&lt;maprule_name&gt;*_out/" ?
 
@@ -278,8 +272,8 @@ def _validate_attributes(ctx_attr_outs_templates, ctx_attr_add_env):
     errors = []
 
     envvars = {
-        "MAPRULE_SRC": "the source file",
-        "MAPRULE_SRCS": "the space-joined paths of the common sources",
+        "MR_SRC": "the source file",
+        "MR_SRCS": "the space-joined paths of the common sources",
     }
 
     if not ctx_attr_outs_templates:
@@ -291,13 +285,17 @@ def _validate_attributes(ctx_attr_outs_templates, ctx_attr_add_env):
     # Check entries in "outs_templates".
     for name, path in ctx_attr_outs_templates.items():
         # Check the entry's name.
-        envvar_for_name = "MAPRULE_" + name.upper()
+        envvar_for_name = name.upper()
         error_prefix = "ERROR: In \"outs_templates\" entry {\"%s\": \"%s\"}: " % (name, path)
         if not name:
             errors.append("ERROR: Bad entry in the \"outs_templates\" attribute: the name " +
                           "should not be empty.")
         elif name.upper() != name:
             errors.append(error_prefix + "the name should be all upper-case.")
+        elif not name.startswith("MR_"):
+            errors.append(error_prefix + "the name should start with \"MR_\".")
+        elif name == "MR_":
+            errors.append(error_prefix + "the name should be more than just \"MR_\".")
         elif envvar_for_name in envvars:
             errors.append((error_prefix +
                            "please rename it, otherwise this output path would be exported " +
@@ -321,7 +319,7 @@ def _validate_attributes(ctx_attr_outs_templates, ctx_attr_add_env):
 
     # Check envvar names in "add_env".
     for name, value in ctx_attr_add_env.items():
-        envvar_for_name = "MAPRULE_" + name.upper()
+        envvar_for_name = name.upper()
         error_prefix = "ERROR: In \"add_env\" entry {\"%s\": \"%s\"}: " % (name, value)
         if not name:
             errors.append("ERROR: Bad entry in the \"add_env\" attribute: the name should not be " +
@@ -393,18 +391,9 @@ def _create_outputs(ctx, ctx_label_name, ctx_attr_outs_templates, strategy, fore
 
 def _custom_envmap(ctx, strategy, src_placeholders, outs_dict, resolved_add_env):
     return dicts.add(
-        {
-            "MAPRULE_" + k.upper(): strategy.as_path(v)
-            for k, v in src_placeholders.items()
-        },
-        {
-            "MAPRULE_" + k.upper(): strategy.as_path(v.path)
-            for k, v in outs_dict.items()
-        },
-        {
-            "MAPRULE_" + k.upper(): v
-            for k, v in resolved_add_env.items()
-        },
+        {"MR_" + k.upper(): strategy.as_path(v) for k, v in src_placeholders.items()},
+        {k: strategy.as_path(v.path) for k, v in outs_dict.items()},
+        {k: v for k, v in resolved_add_env.items()},
     )
 
 def _fail_if_errors(errors):
@@ -440,7 +429,7 @@ def _maprule_main(ctx, strategy):
     # Create the part of the environment variables map that all actions will share.
     common_envmap = dicts.add(
         ctx.configuration.default_shell_env,
-        {"MAPRULE_SRCS": " ".join([strategy.as_path(p.path) for p in common_srcs_list])},
+        {"MR_SRCS": " ".join([strategy.as_path(p.path) for p in common_srcs_list])},
     )
 
     # Resolve "tools" runfiles and $(location) references in "add_env".
@@ -453,7 +442,7 @@ def _maprule_main(ctx, strategy):
             ctx,
             inputs = depset(direct = [src], transitive = [common_srcs, inputs_from_tools]),
             outputs = foreach_src_outs_dicts[src].values(),
-            # The custom envmap contains envvars specific to the current "src", such as MAPRULE_SRC.
+            # The custom envmap contains envvars specific to the current "src", such as MR_SRC.
             env = common_envmap + _custom_envmap(
                 ctx,
                 strategy,
@@ -524,11 +513,10 @@ _ATTRS = {
     ),
     "add_env": attr.string_dict(
         doc = "Extra environment variables to define for the actions. Every variable's name " +
-              "must be uppercase. Bazel will automatically prepend \"MAPRULE_\" to the name " +
-              "when exporting the variable for the action. The values may use \"$(location)\" " +
-              "expressions for labels declared in the `srcs` and `tools` attribute, and " +
-              "may reference the same placeholders as the values of the `outs_templates` " +
-              "attribute.",
+              "must be uppercase, and must start with \"MR_\". The values may use " +
+              "\"$(location)\" expressions for labels declared in the `srcs` and `tools` " +
+              "attribute, and may reference the same placeholders as the values of the " +
+              "`outs_templates` attribute.",
     ),
     "cmd": attr.string(
         mandatory = True,
@@ -552,13 +540,13 @@ _ATTRS = {
     "outs_templates": attr.string_dict(
         allow_empty = False,
         mandatory = True,
-        doc = "<p>Templates for the output files. Each key defines a name for an output file " +
-              "and the value specifies a path template for that output. For each of the " +
-              "files in `foreach_srcs` this rule creates one action that produces all of " +
-              "these outputs. The paths of the particular output files for that input are " +
-              "computed from the template. The ensure the resolved templates yield unique " +
-              "paths, the following placeholders are supported in the path " +
-              "templates:</p>" +
+        doc = "<p>Templates for the output files. Each key must be upper-case and start with " +
+              "\"MR_\". Each key defines a name for an output file and the value specifies a " +
+              "path template for that output. For each of the files in `foreach_srcs` this rule " +
+              "creates one action that produces all of these outputs. The paths of the " +
+              "particular output files for that input are computed from the template. The ensure " +
+              "the resolved templates yield unique paths, the following placeholders are " +
+              "supported in the path templates:</p>" +
               "<ul>" +
               "<li>\"{src}\": same as \"{src_dir}/{src_name}\"</li>" +
               "<li>\"{src_dir}\": package path of the source file, and a trailing \"/\"</li>" +
