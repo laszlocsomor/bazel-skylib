@@ -1,4 +1,4 @@
-load("//rules:shell_action.bzl", "shell_action")
+load("//rules:shell_action.bzl", "shell_actions")
 
 package(default_testonly = 1)
 
@@ -12,7 +12,7 @@ sh_test(
     deps = ["@bazel_tools//tools/bash/runfiles"],
 )
 
-shell_action(
+shell_actions(
     name = "sa",
     srcs = [
         "a/bar.txt",
@@ -24,8 +24,13 @@ shell_action(
         "out1.txt",
         "sa/out2.txt",
     ],
-    add_env = {
-        "SA_TOOL": "$(location :sa_tool)",
+    bash_cmd = "$SA_TOOL",
+    bash_env = {"SA_TOOL": "$(location :sa_tool)"},
+    bash_tools = [":sa_tool"],
+    cmd_cmd = "%SA_TOOL%",
+    cmd_env = {"SA_TOOL": "$(location sa_tool.bat)"},
+    cmd_tools = ["sa_tool.bat"],
+    common_env = {
         "SA_OUT1": "$(location out1.txt)",
         "SA_OUT2": "$(location sa/out2.txt)",
         "SA_FOO": "$(location foo.txt)",
@@ -33,9 +38,6 @@ shell_action(
         "SA_GEN1": "$(location gen1.txt)",
         "SA_GEN2": "$(location a/gen2.txt)",
     },
-    cmd = "$SA_TOOL",
-    shell = "bash",
-    tools = [":sa_tool"],
 )
 
 sh_binary(

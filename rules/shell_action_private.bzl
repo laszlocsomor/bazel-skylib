@@ -20,11 +20,14 @@ load(
     "CMD_STRATEGY",
     "resolve_locations",
 )
+load("//lib:dicts.bzl", "dicts")
 
 # TODO(laszlocsomor):
 # - implement attribute checks
 # - implement rule that can create executable output (outs must be restricted to 1)
 # - add documentation and comments
+# - auto-define SA_OUT if |outs|=1
+# - auto-define SA_SRCS, and SA_SRC if |srcs.files|=1
 
 def _impl(ctx):
     strategy = CMD_STRATEGY if ctx.attr.shell == "cmd" else BASH_STRATEGY
@@ -61,7 +64,7 @@ shell_action = rule(
         ),
         "tools": attr.label_list(
             allow_empty = True,
-            allow_files = False,
+            allow_files = True,
             mandatory = False,
             cfg = "host",
         ),
@@ -78,3 +81,47 @@ shell_action = rule(
         ),
     },
 )
+
+def _assert_defined(name, value):
+    if not value:
+        fail("attribute \"%s\" must have value" % name)
+
+def shell_actions(
+        name = None,
+        srcs = None,
+        outs = None,
+        cmd_cmd = None,
+        bash_cmd = None,
+        cmd_tools = None,
+        bash_tools = None,
+        tools = None,
+        cmd_env = None,
+        bash_env = None,
+        common_env = None,
+        **kwargs):
+    _assert_defined("name", name)
+    _assert_defined("srcs", srcs)
+    _assert_defined("outs", outs)
+    _assert_defined("cmd_cmd", cmd_cmd)
+    _assert_defined("bash_cmd", bash_cmd)
+    shell_action(
+        name = name,
+        srcs = srcs,
+        outs = outs,
+        tools = select({
+            "@bazel_tools//src/conditions:host_windows": cmd_tools or [],
+            "//conditions:default": bash_tools or [],
+        }) + (tools or []),
+        shell = select({
+            "@bazel_tools//src/conditions:host_windows": "cmd",
+            "//conditions:default": "bash",
+        }),
+        cmd = select({
+            "@bazel_tools//src/conditions:host_windows": cmd_cmd,
+            "//conditions:default": bash_cmd,
+        }),
+        add_env = select({
+            "@bazel_tools//src/conditions:host_windows": dicts.add(cmd_env, common_env),
+            "//conditions:default": dicts.add(bash_env, common_env),
+        }),
+    )

@@ -14,6 +14,11 @@
 
 """Shell action implementation in Starlark."""
 
-load(":shell_action_private.bzl", _shell_action = "shell_action")
+load(
+    ":shell_action_private.bzl",
+    _shell_action = "shell_action",
+    _shell_actions = "shell_actions",
+)
 
 shell_action = _shell_action
+shell_actions = _shell_actions
