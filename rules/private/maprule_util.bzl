@@ -20,11 +20,11 @@ def resolve_locations(ctx, strategy, d):
     Args:
       ctx: the 'ctx' argument of the rule implementation function
       strategy: a struct with an 'as_path(string) -> string' function
-      d: {string: string} dictionary; values may contain $(location) references
+      d: {?: string} dictionary; values may contain $(location) references
         for labels declared in the rule's 'srcs' and 'tools' attributes
 
     Returns:
-      {string: string} dict, same as 'd' except "$(location)" references are
+      {?: string} dict, same as 'd' except "$(location)" references are
       resolved.
     """
     location_expressions = []
