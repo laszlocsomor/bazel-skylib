@@ -20,3 +20,7 @@ http_archive(
 load("@io_bazel_skydoc//skylark:skylark.bzl", "skydoc_repositories")
 
 skydoc_repositories()
+
+register_toolchains(
+    "//toolchains/shell_cmd:empty",
+)
